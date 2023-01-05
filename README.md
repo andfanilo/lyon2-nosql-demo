@@ -5,9 +5,9 @@ Here is a Docker compose file which starts redis, mongo, cassandra and neo4j con
 ## Python
 
 ```sh
-conda create -n nosql python=3.7
+conda create -n nosql python=3.8
 conda activate nosql
-pip install streamlit redis pymongo cassandra-driver neo4j
+pip install redis pymongo cassandra-driver neo4j jupyter
 ```
 
 ## Cluster
@@ -47,17 +47,14 @@ smembers recordings:1:artist
 srem recordings:1:artist "Rolling Stones"
 ```
 
-### Python
+### IPython
 
 ```python
-import streamlit as st
 import redis
 
 r = redis.Redis(host='localhost', port=6379)
 r.set('foo', 'bar')
-value = r.get('foo')
-
-st.write(value)
+r.get('foo')
 ```
 
 ## Mongo
@@ -81,9 +78,31 @@ db.recordings.remove({id:1})
 db.recordings.find()
 ```
 
-### Python
+### IPython
 
 ```python
+import pymongo
+from pymongo import MongoClient
+
+client = MongoClient('localhost', 27017)
+test_db = client.test_database
+posts = test_db.posts
+
+post = {
+    "author": "Mike",
+    "text": "My first blog post!",
+    "tags": ["mongodb", "python", "pymongo"],
+}
+post_id = posts.insert_one(post).inserted_id
+
+posts.find_one()
+
+posts.insert_one({
+    "author": "Fanny",
+    "text": "My first blog post!",
+    "tags": ["java"],
+})
+posts.find_one({"author": "Fanny"})
 ```
 
 ## Cassandra
@@ -107,9 +126,23 @@ CREATE INDEX ON recordings(artist);
 SELECT * from recordings where artist='Stones';
 ```
 
-### Python
+### IPython
 
 ```python
+from cassandra.cluster import Cluster
+
+cluster = Cluster()
+session = cluster.connect()
+
+session.execute("CREATE KEYSPACE rainforest WITH replication = {'class':'SimpleStrategy', 'replication_factor':'1'}")
+session.set_keyspace('rainforest')
+session.execute("CREATE COLUMNFAMILY recordings(title varchar PRIMARY KEY, artist varchar, price double)")
+session.execute("INSERT INTO recordings (title, artist, price) values ('Tattoo You', 'Stones', 9.99);")
+session.execute("INSERT INTO recordings (title, artist, price) values ('Music', 'Madonna', 19.99);")
+
+rows = session.execute('SELECT artist, title FROM recordings')
+for user_row in rows:
+    print(user_row.artist, user_row.title)
 ```
 
 ## Neo4j
@@ -134,9 +167,4 @@ RETURN r;
 MATCH (rolling_stones)-[:ARTIST]-(recordings)
 WHERE rolling_stones.artist = 'Rolling Stones' 
 RETURN recordings.title;
-```
-
-### Python
-
-```python
 ```
