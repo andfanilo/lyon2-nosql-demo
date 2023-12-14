@@ -1,14 +1,6 @@
 # NoSQL Docker demo
 
-Here is a Docker compose file which starts redis, mongo, cassandra and neo4j containers for demonstration purposes.
-
-## Python
-
-```sh
-conda create -n nosql python=3.8
-conda activate nosql
-pip install redis pymongo cassandra-driver neo4j jupyter
-```
+Here is a Docker compose file which starts redis, mongo, cassandra and Orientdb containers for demonstration purposes.
 
 ## Cluster
 
@@ -18,13 +10,17 @@ Start : `docker-compose up`
 
 Dismount : `docker-compose down`
 
-## Redis
+## Python
 
-Run Redis server : `docker-compose run --rm --name myredis redis`
+Connect to Python : `docker exec -it mypython bash`
+
+Run: `pip install redis pymongo cassandra-driver pyorient`
+
+## Redis
 
 ### Command line
 
-Connect to redis : `docker exec -it myredis bash; redis-cli`
+Connect to redis : `docker exec -it myredis redis-cli`
 
 ```sh
 ping
@@ -52,14 +48,12 @@ srem recordings:1:artist "Rolling Stones"
 ```python
 import redis
 
-r = redis.Redis(host='localhost', port=6379)
+r = redis.Redis(host='myredis', port=6379)
 r.set('foo', 'bar')
 r.get('foo')
 ```
 
 ## Mongo
-
-Run Mongo server : `docker-compose run --rm --name mymongo mongo`
 
 ### Command line
 
@@ -84,7 +78,7 @@ db.recordings.find()
 import pymongo
 from pymongo import MongoClient
 
-client = MongoClient('localhost', 27017)
+client = MongoClient('mymongo', 27017)
 test_db = client.test_database
 posts = test_db.posts
 
@@ -106,8 +100,6 @@ posts.find_one({"author": "Fanny"})
 ```
 
 ## Cassandra
-
-Run Cassandra server : `docker-compose run --rm --name mycassandra cassandra`
 
 ### Command line
 
@@ -131,7 +123,7 @@ SELECT * from recordings where artist='Stones';
 ```python
 from cassandra.cluster import Cluster
 
-cluster = Cluster()
+cluster = Cluster(['mycassandra'], port=9042)
 session = cluster.connect()
 
 session.execute("CREATE KEYSPACE rainforest WITH replication = {'class':'SimpleStrategy', 'replication_factor':'1'}")
@@ -147,24 +139,47 @@ for user_row in rows:
 
 ## Neo4j
 
-Run Neo4j server : `docker-compose run --rm --service-ports --name myneo4j neo4j`
-
 ### Command line
 
-Connect to Neo4j : `docker exec -it myneo4j cypher-shell`
+Connect to OrientDB : `docker exec -it myorientdb bash`
 
-Neo4j Browser is available via HTTP at http://localhost:7474 and HTTPS at https://localhost:7473.
+### IPython
 
-```sh
-CREATE (a { artist: 'Rolling Stones' });
-CREATE (t { title: 'Beggars Banquet' });
+```python
+import pyorient
 
-MATCH (a),(t)
-WHERE a.artist = 'Rolling Stones' AND t.title = 'Beggars Banquet'
-CREATE (a)-[r:ARTIST]->(t)
-RETURN r;
+ROOT_PASSWORD = "root"
+client = pyorient.OrientDB("myorientdb", 2424)
+session_id = client.connect("root", ROOT_PASSWORD)
 
-MATCH (rolling_stones)-[:ARTIST]-(recordings)
-WHERE rolling_stones.artist = 'Rolling Stones' 
-RETURN recordings.title;
+client.db_create("gods", pyorient.DB_TYPE_GRAPH, pyorient.STORAGE_TYPE_MEMORY)
+client.db_open( "gods", "root", ROOT_PASSWORD) 
+
+client.command("create vertex content {name: 'Zeus', symbol: 'thunder'}")
+client.command("create vertex content {name:'Héra', symbol:'tiara'}")
+client.command("create vertex content {name:'Poséidon', symbol:'trident'}") 
+client.command("create vertex content {name:'Athena', symbol:'helmet'}")
+client.command("create vertex content {name:'Arès', symbol:'weapons'} ") 
+
+client.command("create edge from (SELECT FROM V WHERE name = 'Zeus') to (SELECT FROM V WHERE name = 'Poséidon') content {kind: 'sibling'}")
+
+for i, o, c in [
+    ('Zeus','Héra','sibling'),
+    ('Zeus','Arès','father'),
+    ('Zeus','Athena','father'),
+    ('Héra','Arès','mother'),
+    ('Héra','Zeus','sibling'),
+    ('Poséidon','Zeus','sibling')
+]:
+    command=f"create edge from (select from V where name = '{i}') to (select from V where name = '{o}') content {{kind: '{c}'}}"
+    print(command)
+    client.command(command)
+```
+
+Browser is available via http://localhost:2480
+
+```
+select expand(out()) from V where name = 'Zeus'
+select expand(in) from E where kind = 'father'
+select from V where out_ in (select from E where kind = 'mother')
 ```

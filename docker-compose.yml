@@ -1,13 +1,21 @@
 version: '3'
 
 services:
+  python:
+    image: quay.io/jupyter/datascience-notebook
+    container_name: mypython
+    user: root
+    environment:
+      - GRANT_SUDO=yes
+    ports:
+      - "8888:8888"
   redis:
     image: redis
     container_name: myredis
     ports:
       - "6379:6379"
   mongo:
-    image: mongo
+    image: mongo:4
     container_name: mymongo
     ports:
       - "27017:27017"
@@ -17,12 +25,11 @@ services:
     container_name: mycassandra
     ports:
       - "9042:9042"
-  neo4j:
-    image: neo4j
+  orientdb:
+    image: orientdb:2.2
+    container_name: myorientdb
     environment:
-      - NEO4J_AUTH=none
+      - ORIENTDB_ROOT_PASSWORD=root
     ports:
-      - "7687:7687"
-      - "7473:7473"
-      - "7474:7474"
-    container_name: myneo4j
+      - "2424:2424"
+      - "2480:2480"
